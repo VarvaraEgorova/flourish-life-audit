@@ -176,7 +176,7 @@ function App() {
     React.createElement("input", { type:"text", value:answers.name, onChange:e=>update("name",e.target.value), placeholder:"First name is fine...", style: s({ width:"100%", background:"transparent", border:"none", borderBottom:`1px solid ${C.stone}`, padding:"12px 0", fontSize:22, color:C.ink, outline:"none", boxSizing:"border-box" }) }),
     React.createElement(Btn, { onClick:next, disabled:!answers.name.trim() }));
 
-  if (screen === 3) return React.createElement(Screen, null, progressBar,
+  if (screen === 2) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, what has been giving you the most energy?"),
     React.createElement(TA, { value:answers.energising, onChange:v=>update("energising",v), placeholder:"Write freely — there's no right answer..." }),
