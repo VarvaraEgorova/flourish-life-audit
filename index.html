@@ -52,8 +52,12 @@ const MORNING_OPTIONS = ["Energised and ready","Calm and steady","Neutral — go
 const SLEEP_OPTIONS = ["Restful and consistent","Mostly okay","Inconsistent","Poor — not restorative","Other"];
 
 async function generateAIReflection(answers, mostDraining, mostEnergising) {
-  const sliderSummary = Object.entries(answers.energySliders).map(([k,v]) => `${k}: ${v>0?"+":""}${v}`).join(", ");
-  const allocSummary = Object.entries(answers.allocation).filter(([_,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}%`).join(", ");
+  const sliderSummary = Object.entries(answers.energySliders)
+    .map(([k,v]) => v === 0 ? `${k}: 0 (absent/not accessed)` : `${k}: ${v>0?"+":""}${v}`)
+    .join(", ");
+  const nonZeroAlloc = Object.entries(answers.allocation).filter(([_,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}%`).join(", ");
+  const zeroAlloc = Object.entries(answers.allocation).filter(([_,v])=>v===0).map(([k])=>k).join(", ");
+  const allocSummary = nonZeroAlloc + (zeroAlloc ? ` | Zero allocation (no time/energy given): ${zeroAlloc}` : "");
   const prompt = `You are writing a reflection for a woman who just completed a Life Alignment Audit on Flourish Studio, a positive psychology practice for ambitious women navigating burnout and life transitions, founded by Varvara Egorova-Ioane.
 
 Her responses:
@@ -76,17 +80,17 @@ Write THREE short paragraphs, max 180 words total. Use her actual words where po
 
 Para 1: Reflect what seems to be weighing on her — use her specific words from what's been draining her and occupying her mind. Name the pattern at a high level without diagnosing. Make her feel seen.
 Para 2: Name what seems to be sustaining her — draw from her energising answers and the moment she felt most like herself. This is the positive anchor. Be specific, not generic.
-Para 3: There is a gap between these two things worth exploring together. Be curious, not conclusive. End with one open question — not a yes/no question — that makes her want to have a conversation to go deeper. The question should feel like it comes from really listening to her, not a template.
+Para 3: There is a gap between these two things worth exploring together. Pay attention to what is absent — domains with zero energy allocation or zero slider score may be areas she has stopped accessing entirely, not areas that are neutral. Absence can be as telling as presence. Be curious, not conclusive. End with one open question — not a yes/no question — that makes her want to have a conversation to go deeper. The question should feel like it comes from really listening to her, not a template.
 
-RULES: No diagnosis. No advice. No solutions. No clinical language. No em-dashes. Warm, direct, intelligent tone — like a wise trusted friend who has really listened. Use her actual words. Leave her curious and seen, not analysed or concluded.`;
+RULES: No diagnosis. No advice. No solutions. No clinical language. No em-dashes. Warm, direct, intelligent tone — like a wise trusted friend who has really listened. Use her actual words. Leave her curious and seen, not analysed or concluded. Zero on the energy map or allocation is not neutral — it means that area has disappeared from her life entirely, which is worth noting gently if relevant.`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/.netlify/functions/reflect", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ prompt }),
   });
   const data = await res.json();
-  return data.content?.find(b => b.type === "text")?.text || "";
+  return data.text || "";
 }
 
 function PieChart({ data }) {
