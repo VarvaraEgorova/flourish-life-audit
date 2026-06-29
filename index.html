@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Life Alignment Audit — Flourish Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #f5f0e8; font-family: 'Cormorant Garamond', Georgia, serif; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; background: transparent; cursor: pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #b85c38; cursor: pointer; border: 2px solid #f5f0e8; box-shadow: 0 1px 4px rgba(44,36,22,0.15); margin-top: -7px; }
+input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #b85c38; cursor: pointer; border: 2px solid #f5f0e8; }
+input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #d4cbba; border-radius: 1px; }
+input[type=range]::-moz-range-track { height: 2px; background: #d4cbba; border-radius: 1px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const C = {
+  parchment: "#f5f0e8",
+  parchmentDeep: "#ede4d4",
+  terracotta: "#b85c38",
+  ink: "#2c2416",
+  inkLight: "#4a3f35",
+  sage: "#7a8c72",
+  stone: "#d4cbba",
+  warmGrey: "#9a8f85",
+};
+
+const DOMAIN_COLORS = ["#b85c38","#7a8c72","#9a8f85","#c97a58","#6b7a63","#d4cbba","#4a3f35","#b5a898"];
+
+const DOMAINS = [
+  { key: "work", label: "Work & career" },
+  { key: "relationships", label: "Relationships & connection" },
+  { key: "family", label: "Family & home" },
+  { key: "health", label: "Health & body" },
+  { key: "growth", label: "Personal growth & learning" },
+  { key: "creativity", label: "Creativity & expression" },
+  { key: "meaning", label: "Meaning & purpose" },
+  { key: "freedom", label: "Freedom & autonomy" },
+];
+
+const MORNING_OPTIONS = ["Energised and ready","Calm and steady","Neutral — going through the motions","Heavy or already tired","Anxious or overwhelmed","Other"];
+const SLEEP_OPTIONS = ["Restful and consistent","Mostly okay","Inconsistent","Poor — not restorative","Other"];
+
+async function generateAIReflection(answers, mostDraining, mostEnergising) {
+  const sliderSummary = Object.entries(answers.energySliders).map(([k,v]) => `${k}: ${v>0?"+":""}${v}`).join(", ");
+  const allocSummary = Object.entries(answers.allocation).filter(([_,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}%`).join(", ");
+  const prompt = `You are writing a reflection for a woman who just completed a Life Alignment Audit on Flourish Studio, a positive psychology practice for ambitious women navigating burnout and life transitions, founded by Varvara Egorova-Ioane.
+
+Her responses:
+ENERGY SNAPSHOT:
+- Giving her energy: "${answers.energising}"
+- Draining her: "${answers.draining}"
+- Morning feeling: "${answers.morning}${answers.morningOther?": "+answers.morningOther:""}"
+- Occupying her mind: "${answers.mindOccupied}"
+- Sleep: "${answers.sleep}${answers.sleepOther?": "+answers.sleepOther:""}"
+ENERGY MAP (sliders -5 to +5): ${sliderSummary}
+ENERGY ALLOCATION: ${allocSummary}
+Most draining: ${mostDraining.label}
+Most energising: ${mostEnergising.label}
+TRUTH LAYER:
+- Most like herself: "${answers.mostLikeMyself}"
+- Tolerating: "${answers.tolerating}"
+- Senses needs to change: "${answers.senseChange}"
+
+Write THREE short paragraphs, max 160 words total.
+Para 1: What seems to be draining her — reflect her words back without diagnosing.
+Para 2: What seems to be sustaining her — the positive anchor.
+Para 3: A gap worth exploring — open, curious, end with one question that makes her want to talk.
+RULES: No diagnosis. No advice. No solutions. No clinical language. No em-dashes. Warm, direct, wise friend tone. Use her actual words. Leave her curious not concluded.`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await res.json();
+  return data.content?.find(b => b.type === "text")?.text || "";
+}
+
+function PieChart({ data }) {
+  const size = 180, cx = 90, cy = 90, r = 70;
+  const total = Object.values(data).reduce((a,b)=>a+b,0);
+  if (!total) return React.createElement("div", { style: { width: size, height: size, margin: "0 auto", border: `1px dashed ${C.stone}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" } },
+    React.createElement("span", { style: { fontSize: 12, color: C.warmGrey } }, "Enter % above"));
+  let angle = -Math.PI/2;
+  const slices = DOMAINS.map((d,i) => {
+    const val = data[d.key]||0;
+    if (!val) return null;
+    const slice = (val/total)*2*Math.PI;
+    const x1 = cx+r*Math.cos(angle), y1 = cy+r*Math.sin(angle);
+    angle += slice;
+    const x2 = cx+r*Math.cos(angle), y2 = cy+r*Math.sin(angle);
+    return React.createElement("path", { key: i, d: `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${slice>Math.PI?1:0},1 ${x2},${y2} Z`, fill: DOMAIN_COLORS[i], opacity: 0.85, stroke: C.parchment, strokeWidth: 1.5 });
+  }).filter(Boolean);
+  return React.createElement("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}`, style: { display: "block", margin: "0 auto" } },
+    React.createElement("circle", { cx, cy, r: r+2, fill: "none", stroke: C.stone, strokeWidth: 1 }),
+    ...slices,
+    React.createElement("circle", { cx, cy, r: 24, fill: C.parchment })
+  );
+}
+
+function App() {
+  const [screen, setScreen] = useState(0);
+  const [answers, setAnswers] = useState({
+    energising: "", draining: "", morning: "", morningOther: "", mindOccupied: "", sleep: "", sleepOther: "",
+    energySliders: Object.fromEntries(DOMAINS.map(d=>[d.key,0])),
+    allocation: Object.fromEntries(DOMAINS.map(d=>[d.key,0])),
+    mostLikeMyself: "", tolerating: "", senseChange: "", email: "", wantsCall: false,
+  });
+  const [aiOutput, setAiOutput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(false);
+
+  const update = (k,v) => setAnswers(p=>({...p,[k]:v}));
+  const updateSlider = (k,v) => setAnswers(p=>({...p,energySliders:{...p.energySliders,[k]:v}}));
+  const updateAlloc = (k,v) => setAnswers(p=>({...p,allocation:{...p.allocation,[k]:Math.max(0,Math.min(100,Number(v)))}}));
+  const next = () => { setScreen(s=>s+1); window.scrollTo(0,0); };
+  const back = () => { setScreen(s=>s-1); window.scrollTo(0,0); };
+  const allocTotal = Object.values(answers.allocation).reduce((a,b)=>a+b,0);
+
+  const misalignmentScore = d => { const s=answers.energySliders[d.key]||0; const a=answers.allocation[d.key]||0; return ((-s+5)/10)*0.6+(a/100)*0.4; };
+  const energyScore = d => { const s=answers.energySliders[d.key]||0; const a=answers.allocation[d.key]||0; return ((s+5)/10)*0.7+(a/100)*0.3; };
+  const mostDraining = DOMAINS.reduce((a,b)=>misalignmentScore(a)>misalignmentScore(b)?a:b);
+  const mostEnergising = DOMAINS.reduce((a,b)=>energyScore(a)>energyScore(b)?a:b);
+
+  const s = (x) => ({ fontFamily: "'Cormorant Garamond', Georgia, serif", ...x });
+  const Screen = ({children}) => React.createElement("div", { style: s({ minHeight:"100vh", background:C.parchment, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 24px" }) },
+    React.createElement("div", { style: { maxWidth:560, width:"100%" } }, children));
+  const Label = ({children}) => React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.3em", textTransform:"uppercase", color:C.terracotta, marginBottom:24 }) }, children);
+  const Q = ({children}) => React.createElement("h2", { style: s({ fontSize:28, fontWeight:400, color:C.ink, lineHeight:1.35, marginBottom:36 }) }, children);
+  const Btn = ({onClick,label="Continue",disabled}) => React.createElement("button", { onClick, disabled, style: s({ marginTop:36, padding:"16px 40px", background:disabled?C.stone:C.ink, color:disabled?C.warmGrey:C.parchment, border:"none", borderRadius:2, fontSize:13, letterSpacing:"0.25em", textTransform:"uppercase", cursor:disabled?"default":"pointer" }) }, label);
+  const Back = () => React.createElement("button", { onClick: back, style: s({ padding:"16px 24px", background:"transparent", border:`1px solid ${C.stone}`, borderRadius:2, color:C.warmGrey, fontSize:13, letterSpacing:"0.2em", textTransform:"uppercase", cursor:"pointer" }) }, "Back");
+  const TA = ({value,onChange,placeholder}) => React.createElement("textarea", { value, onChange:e=>onChange(e.target.value), placeholder:placeholder||"Write freely...", rows:4, style: s({ width:"100%", background:"transparent", border:"none", borderBottom:`1px solid ${C.stone}`, padding:"12px 0", fontSize:16, color:C.ink, resize:"none", outline:"none", lineHeight:1.7, boxSizing:"border-box" }) });
+  const Choice = ({label,selected,onClick}) => React.createElement("button", { onClick, style: s({ display:"block", width:"100%", textAlign:"left", padding:"16px 20px", marginBottom:10, background:selected?C.terracotta:"transparent", border:`1px solid ${selected?C.terracotta:C.stone}`, borderRadius:2, color:selected?C.parchment:C.inkLight, fontSize:16, cursor:"pointer" }) }, label);
+
+  const progressBar = React.createElement("div", { style: { position:"fixed", top:0, left:0, right:0, height:2, background:C.stone, zIndex:100 } },
+    React.createElement("div", { style: { height:"100%", background:C.terracotta, width:`${(screen/15)*100}%`, transition:"width 0.5s ease" } }));
+
+  if (screen === 0) return React.createElement(Screen, null,
+    progressBar,
+    React.createElement("div", { style: { textAlign:"center" } },
+      React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.4em", textTransform:"uppercase", color:C.terracotta, marginBottom:32 }) }, "Flourish Studio"),
+      React.createElement("h1", { style: s({ fontSize:42, fontWeight:300, color:C.ink, lineHeight:1.2, marginBottom:20 }) }, "The Life", React.createElement("br"), "Alignment Audit"),
+      React.createElement("div", { style: { width:40, height:1, background:C.terracotta, margin:"0 auto 28px" } }),
+      React.createElement("p", { style: s({ fontSize:18, color:C.inkLight, lineHeight:1.8, marginBottom:16, fontStyle:"italic" }) }, "A 10-minute reflection to help you see where your energy is going — and where something may be out of alignment."),
+      React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, lineHeight:1.7, marginBottom:48 }) }, "There are no right or wrong answers. Answer as honestly as you can, based on the past month."),
+      React.createElement("button", { onClick: next, style: s({ padding:"18px 48px", background:C.terracotta, color:C.parchment, border:"none", borderRadius:2, fontSize:13, letterSpacing:"0.3em", textTransform:"uppercase", cursor:"pointer" }) }, "Begin")));
+
+  if (screen === 1) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Q, null, "Over the past month, what has been giving you the most energy?"),
+    React.createElement(TA, { value:answers.energising, onChange:v=>update("energising",v), placeholder:"Write freely — there's no right answer..." }),
+    React.createElement(Btn, { onClick:next, disabled:!answers.energising.trim() }));
+
+  if (screen === 2) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Q, null, "Over the past month, what has been draining you the most?"),
+    React.createElement(TA, { value:answers.draining, onChange:v=>update("draining",v), placeholder:"Be honest — this is just for you..." }),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.draining.trim() })));
+
+  if (screen === 3) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Q, null, "On a typical weekday morning over the past month — how have you felt when you wake up?"),
+    MORNING_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.morning===opt, onClick:()=>update("morning",opt) })),
+    answers.morning==="Other" && React.createElement(TA, { value:answers.morningOther, onChange:v=>update("morningOther",v), placeholder:"Describe how you've been waking up..." }),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.morning })));
+
+  if (screen === 4) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Q, null, "Over the past month, what has been occupying your mind the most?"),
+    React.createElement(TA, { value:answers.mindOccupied, onChange:v=>update("mindOccupied",v), placeholder:"The thoughts that keep coming back..." }),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.mindOccupied.trim() })));
+
+  if (screen === 5) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Q, null, "Over the past month, how has your sleep been?"),
+    SLEEP_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.sleep===opt, onClick:()=>update("sleep",opt) })),
+    answers.sleep==="Other" && React.createElement(TA, { value:answers.sleepOther, onChange:v=>update("sleepOther",v), placeholder:"Tell us more..." }),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.sleep })));
+
+  if (screen === 6) return React.createElement(Screen, null, progressBar,
+    React.createElement("div", { style:{ textAlign:"center" } },
+      React.createElement(Label, null, "Part 2 of 3 — Energy Map"),
+      React.createElement("h2", { style: s({ fontSize:32, fontWeight:300, color:C.ink, lineHeight:1.35, marginBottom:20 }) }, "Now let's map your energy across the different areas of your life."),
+      React.createElement("div", { style:{ width:40, height:1, background:C.stone, margin:"0 auto 24px" } }),
+      React.createElement("p", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.8, fontStyle:"italic" }) }, "For each area, move the slider to show whether it's been draining or energising you over the past month."),
+      React.createElement(Btn, { onClick:next, label:"Let's map it" })));
+
+  if (screen === 7) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 2 of 3 — Energy Map"),
+    React.createElement(Q, null, "How much energy has each area been giving or taking over the past month?"),
+    ...DOMAINS.map(d => React.createElement("div", { key:d.key, style:{ marginBottom:28 } },
+      React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:10 } },
+        React.createElement("span", { style: s({ fontSize:15, color:C.ink }) }, d.label),
+        React.createElement("span", { style: s({ fontSize:13, color:answers.energySliders[d.key]>0?C.sage:answers.energySliders[d.key]<0?C.terracotta:C.warmGrey }) }, answers.energySliders[d.key]>0?`+${answers.energySliders[d.key]}`:answers.energySliders[d.key])),
+      React.createElement("div", { style:{ position:"relative", height:24, display:"flex", alignItems:"center" } },
+        React.createElement("div", { style:{ position:"absolute", left:0, right:0, height:1, background:C.stone } }),
+        React.createElement("div", { style:{ position:"absolute", left:"50%", width:1, height:8, background:C.warmGrey, transform:"translateX(-50%)" } }),
+        React.createElement("input", { type:"range", min:-5, max:5, step:1, value:answers.energySliders[d.key], onChange:e=>updateSlider(d.key,Number(e.target.value)) })),
+      React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginTop:6 } },
+        React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, "Draining"),
+        React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, "Energising")))),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next })));
+
+  if (screen === 8) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 2 of 3 — Energy Map"),
+    React.createElement(Q, null, "Over the past month, where has most of your energy actually gone?"),
+    React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, marginBottom:32, lineHeight:1.6 }) },
+      "Distribute 100% across the areas below. Reflect reality — not how you wish it were. ",
+      React.createElement("span", { style:{ color:allocTotal===100?C.sage:allocTotal>100?C.terracotta:C.warmGrey, fontWeight:500 } }, `Total: ${allocTotal}%`)),
+    React.createElement("div", { style:{ display:"flex", gap:32, alignItems:"flex-start", flexWrap:"wrap" } },
+      React.createElement("div", { style:{ flexShrink:0 } },
+        React.createElement(PieChart, { data:answers.allocation }),
+        React.createElement("div", { style:{ marginTop:12, display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center" } },
+          DOMAINS.map((d,i) => answers.allocation[d.key]>0 && React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:4 } },
+            React.createElement("div", { style:{ width:8, height:8, borderRadius:"50%", background:DOMAIN_COLORS[i] } }),
+            React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, `${answers.allocation[d.key]}%`))))),
+      React.createElement("div", { style:{ flex:1, minWidth:200 } },
+        DOMAINS.map((d,i) => React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:12, marginBottom:14 } },
+          React.createElement("div", { style:{ width:10, height:10, borderRadius:"50%", background:DOMAIN_COLORS[i], flexShrink:0 } }),
+          React.createElement("span", { style: s({ flex:1, fontSize:14, color:C.inkLight }) }, d.label),
+          React.createElement("input", { type:"number", min:0, max:100, value:answers.allocation[d.key], onChange:e=>updateAlloc(d.key,e.target.value), style: s({ width:52, padding:"6px 8px", border:`1px solid ${C.stone}`, borderRadius:2, background:"transparent", fontSize:14, color:C.ink, textAlign:"center", outline:"none" }) }),
+          React.createElement("span", { style: s({ fontSize:13, color:C.warmGrey }) }, "%"))))),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } },
+      React.createElement(Back),
+      React.createElement(Btn, { onClick:next, disabled:allocTotal!==100, label:allocTotal===100?"Continue":`${100-allocTotal}% remaining` })));
+
+  if (screen === 9) return React.createElement(Screen, null, progressBar,
+    React.createElement("div", { style:{ textAlign:"center" } },
+      React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+      React.createElement("h2", { style: s({ fontSize:32, fontWeight:300, color:C.ink, lineHeight:1.35, marginBottom:20 }) }, "Three final questions."),
+      React.createElement("div", { style:{ width:40, height:1, background:C.stone, margin:"0 auto 24px" } }),
+      React.createElement("p", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.8, fontStyle:"italic" }) }, "These are the ones that matter most. Take your time with them."),
+      React.createElement(Btn, { onClick:next, label:"I'm ready" })));
+
+  if (screen === 10) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+    React.createElement(Q, null, "In the past month, when did you feel most like yourself — even briefly? What was happening?"),
+    React.createElement(TA, { value:answers.mostLikeMyself, onChange:v=>update("mostLikeMyself",v), placeholder:"A moment, a place, a conversation..." }),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.mostLikeMyself.trim() })));
+
+  if (screen === 11) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+    React.createElement(Q, null, "What have you been tolerating over the past month that you wish you weren't?"),
+    React.createElement(TA, { value:answers.tolerating, onChange:v=>update("tolerating",v), placeholder:"The things you keep putting up with..." }),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.tolerating.trim() })));
+
+  if (screen === 12) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+    React.createElement(Q, null, "If something in your life needs to change, what do you already sense it is?"),
+    React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, marginBottom:24, fontStyle:"italic", lineHeight:1.6 }) }, "You usually already know. This is permission to say it, even just to yourself."),
+    React.createElement(TA, { value:answers.senseChange, onChange:v=>update("senseChange",v), placeholder:"The thing you already sense but haven't said out loud..." }),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } },
+      React.createElement(Back),
+      React.createElement(Btn, { onClick: async () => {
+        next();
+        setAiLoading(true); setAiError(false);
+        try { const r = await generateAIReflection(answers, mostDraining, mostEnergising); setAiOutput(r); }
+        catch(e) { setAiError(true); }
+        finally { setAiLoading(false); }
+      }, disabled:!answers.senseChange.trim(), label:"See my reflection" })));
+
+  if (screen === 13) return React.createElement(Screen, null, progressBar,
+    React.createElement("div", null,
+      React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.3em", textTransform:"uppercase", color:C.terracotta, marginBottom:40 }) }, "Your Alignment Snapshot"),
+      React.createElement("div", { style:{ background:C.parchmentDeep, border:`1px solid ${C.stone}`, borderRadius:2, padding:24, marginBottom:36 } },
+        React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.2em", textTransform:"uppercase", color:C.warmGrey, marginBottom:16 }) }, "Your energy map"),
+        React.createElement("div", { style:{ display:"flex", gap:24, alignItems:"center", flexWrap:"wrap" } },
+          React.createElement("div", null,
+            React.createElement("p", { style: s({ fontSize:11, color:C.warmGrey, marginBottom:4 }) }, "Most draining"),
+            React.createElement("p", { style: s({ fontSize:17, color:C.terracotta }) }, mostDraining.label)),
+          React.createElement("div", { style:{ width:1, height:32, background:C.stone } }),
+          React.createElement("div", null,
+            React.createElement("p", { style: s({ fontSize:11, color:C.warmGrey, marginBottom:4 }) }, "Most energising"),
+            React.createElement("p", { style: s({ fontSize:17, color:C.sage }) }, mostEnergising.label)))),
+      aiLoading && React.createElement("div", { style:{ textAlign:"center", padding:"48px 0" } },
+        React.createElement("div", { style:{ width:32, height:32, border:`2px solid ${C.stone}`, borderTop:`2px solid ${C.terracotta}`, borderRadius:"50%", margin:"0 auto 20px", animation:"spin 1s linear infinite" } }),
+        React.createElement("p", { style: s({ fontSize:16, color:C.warmGrey, fontStyle:"italic" }) }, "Reading your responses...")),
+      aiError && !aiLoading && React.createElement("p", { style: s({ fontSize:16, color:C.warmGrey, fontStyle:"italic", lineHeight:1.8, marginBottom:28 }) }, "Something in your responses points to a gap between where your energy is going and what is actually sustaining you. That gap is worth exploring."),
+      aiOutput && !aiLoading && React.createElement("div", { style:{ marginBottom:36 } },
+        aiOutput.split("\n\n").filter(p=>p.trim()).map((para,i,arr) => React.createElement("p", { key:i, style: s({ fontSize:i===arr.length-1?18:17, color:i===arr.length-1?C.ink:C.inkLight, lineHeight:1.85, marginBottom:20, fontStyle:i===arr.length-1?"italic":"normal" }) }, para))),
+      !aiLoading && React.createElement(React.Fragment, null,
+        React.createElement("div", { style:{ width:40, height:1, background:C.stone, marginBottom:28 } }),
+        React.createElement("p", { style: s({ fontSize:16, color:C.ink, lineHeight:1.8, marginBottom:36 }) }, "If this resonates, we can unpack it properly together. In a free 30-minute session, we will map this out and identify what may need to shift."),
+        React.createElement(Btn, { onClick:next, label:"I'd like to explore this" }),
+        React.createElement("p", { onClick:next, style: s({ marginTop:16, fontSize:13, color:C.warmGrey, cursor:"pointer", textDecoration:"underline" }) }, "Skip to contact options"))));
+
+  if (screen === 14) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Let's talk"),
+    React.createElement("h2", { style: s({ fontSize:32, fontWeight:300, color:C.ink, lineHeight:1.35, marginBottom:16 }) }, "Leave your email and I'll be in touch within a day."),
+    React.createElement("p", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.7, marginBottom:36, fontStyle:"italic" }) }, "No commitment. Just a conversation."),
+    React.createElement("input", { type:"email", placeholder:"your@email.com", value:answers.email, onChange:e=>update("email",e.target.value), style: s({ width:"100%", background:"transparent", border:"none", borderBottom:`1px solid ${C.stone}`, padding:"12px 0", fontSize:18, color:C.ink, outline:"none", marginBottom:20, boxSizing:"border-box" }) }),
+    React.createElement("label", { style:{ display:"flex", gap:12, alignItems:"flex-start", cursor:"pointer", marginBottom:36 } },
+      React.createElement("input", { type:"checkbox", checked:answers.wantsCall, onChange:e=>update("wantsCall",e.target.checked), style:{ marginTop:4, accentColor:C.terracotta } }),
+      React.createElement("span", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.6 }) }, "I'd be open to a free 30-minute conversation to explore this further")),
+    React.createElement(Btn, { onClick: async () => {
+      try {
+        await fetch("/.netlify/functions/submit", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ email:answers.email, wantsCall:answers.wantsCall, energising:answers.energising, draining:answers.draining, morning:answers.morning+(answers.morningOther?": "+answers.morningOther:""), mindOccupied:answers.mindOccupied, sleep:answers.sleep+(answers.sleepOther?": "+answers.sleepOther:""), energySliders:answers.energySliders, allocation:answers.allocation, mostLikeMyself:answers.mostLikeMyself, tolerating:answers.tolerating, senseChange:answers.senseChange, aiOutput, mostDraining:mostDraining.label, mostEnergising:mostEnergising.label }),
+        });
+      } catch(e) { console.log(e); }
+      next();
+    }, label:"Send", disabled:!answers.email.trim() }));
+
+  if (screen === 15) return React.createElement(Screen, null, progressBar,
+    React.createElement("div", { style:{ textAlign:"center" } },
+      React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.4em", textTransform:"uppercase", color:C.terracotta, marginBottom:32 }) }, "Flourish Studio"),
+      React.createElement("h2", { style: s({ fontSize:36, fontWeight:300, color:C.ink, lineHeight:1.3, marginBottom:20 }) }, "Thank you for taking the time to reflect."),
+      React.createElement("div", { style:{ width:40, height:1, background:C.terracotta, margin:"0 auto 28px" } }),
+      React.createElement("p", { style: s({ fontSize:18, color:C.inkLight, lineHeight:1.8, fontStyle:"italic", marginBottom:16 }) }, "That kind of honesty takes courage. I'll be in touch soon."),
+      React.createElement("p", { style: s({ fontSize:15, color:C.warmGrey, lineHeight:1.7 }) }, "In the meantime, sit with what came up. The fact that you're here means something is already shifting."),
+      React.createElement("p", { style: s({ marginTop:48, fontSize:16, color:C.ink, fontStyle:"italic" }) }, "— Varvara")));
+
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
