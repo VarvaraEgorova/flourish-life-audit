@@ -109,6 +109,12 @@ function PieChart({ data }) {
   );
 }
 
+const taStyle = { fontFamily:"'Cormorant Garamond', Georgia, serif", width:"100%", background:"transparent", border:"none", borderBottom:"1px solid #d4cbba", padding:"12px 0", fontSize:16, color:"#2c2416", resize:"none", outline:"none", lineHeight:1.7, boxSizing:"border-box" };
+
+function TA({value, onChange, placeholder}) {
+  return React.createElement("textarea", { value, onChange:e=>onChange(e.target.value), placeholder:placeholder||"Write freely...", rows:4, style:taStyle });
+}
+
 function App() {
   const [screen, setScreen] = useState(0);
   const [answers, setAnswers] = useState({
@@ -140,7 +146,7 @@ function App() {
   const Q = ({children}) => React.createElement("h2", { style: s({ fontSize:28, fontWeight:400, color:C.ink, lineHeight:1.35, marginBottom:36 }) }, children);
   const Btn = ({onClick,label="Continue",disabled}) => React.createElement("button", { onClick, disabled, style: s({ marginTop:36, padding:"16px 40px", background:disabled?C.stone:C.ink, color:disabled?C.warmGrey:C.parchment, border:"none", borderRadius:2, fontSize:13, letterSpacing:"0.25em", textTransform:"uppercase", cursor:disabled?"default":"pointer" }) }, label);
   const Back = () => React.createElement("button", { onClick: back, style: s({ padding:"16px 24px", background:"transparent", border:`1px solid ${C.stone}`, borderRadius:2, color:C.warmGrey, fontSize:13, letterSpacing:"0.2em", textTransform:"uppercase", cursor:"pointer" }) }, "Back");
-  const TA = ({value,onChange,placeholder}) => React.createElement("textarea", { value, onChange:e=>onChange(e.target.value), placeholder:placeholder||"Write freely...", rows:4, style: s({ width:"100%", background:"transparent", border:"none", borderBottom:`1px solid ${C.stone}`, padding:"12px 0", fontSize:16, color:C.ink, resize:"none", outline:"none", lineHeight:1.7, boxSizing:"border-box" }) });
+  // TA defined above App to prevent focus loss
   const Choice = ({label,selected,onClick}) => React.createElement("button", { onClick, style: s({ display:"block", width:"100%", textAlign:"left", padding:"16px 20px", marginBottom:10, background:selected?C.terracotta:"transparent", border:`1px solid ${selected?C.terracotta:C.stone}`, borderRadius:2, color:selected?C.parchment:C.inkLight, fontSize:16, cursor:"pointer" }) }, label);
 
   const progressBar = React.createElement("div", { style: { position:"fixed", top:0, left:0, right:0, height:2, background:C.stone, zIndex:100 } },
