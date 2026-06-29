@@ -115,6 +115,15 @@ function TA({value, onChange, placeholder}) {
   return React.createElement("textarea", { value, onChange:e=>onChange(e.target.value), placeholder:placeholder||"Write freely...", rows:4, style:taStyle });
 }
 
+
+const s = (x) => ({ fontFamily: "'Cormorant Garamond', Georgia, serif", ...x });
+function Screen({children}) { return React.createElement("div", { style: s({ minHeight:"100vh", background:C.parchment, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 24px" }) }, React.createElement("div", { style: { maxWidth:560, width:"100%" } }, children)); }
+function Label({children}) { return React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.3em", textTransform:"uppercase", color:C.terracotta, marginBottom:24 }) }, children); }
+function Q({children}) { return React.createElement("h2", { style: s({ fontSize:28, fontWeight:400, color:C.ink, lineHeight:1.35, marginBottom:36 }) }, children); }
+function Btn({onClick,label="Continue",disabled}) { return React.createElement("button", { onClick, disabled, style: s({ marginTop:36, padding:"16px 40px", background:disabled?C.stone:C.ink, color:disabled?C.warmGrey:C.parchment, border:"none", borderRadius:2, fontSize:13, letterSpacing:"0.25em", textTransform:"uppercase", cursor:disabled?"default":"pointer" }) }, label); }
+function Choice({label,selected,onClick}) { return React.createElement("button", { onClick, style: s({ display:"block", width:"100%", textAlign:"left", padding:"16px 20px", marginBottom:10, background:selected?C.terracotta:"transparent", border:`1px solid ${selected?C.terracotta:C.stone}`, borderRadius:2, color:selected?C.parchment:C.inkLight, fontSize:16, cursor:"pointer" }) }, label); }
+function BackBtn({onClick}) { return React.createElement("button", { onClick, style: s({ padding:"16px 24px", background:"transparent", border:`1px solid ${C.stone}`, borderRadius:2, color:C.warmGrey, fontSize:13, letterSpacing:"0.2em", textTransform:"uppercase", cursor:"pointer" }) }, "Back"); }
+
 function App() {
   const [screen, setScreen] = useState(0);
   const [answers, setAnswers] = useState({
@@ -139,15 +148,7 @@ function App() {
   const mostDraining = DOMAINS.reduce((a,b)=>misalignmentScore(a)>misalignmentScore(b)?a:b);
   const mostEnergising = DOMAINS.reduce((a,b)=>energyScore(a)>energyScore(b)?a:b);
 
-  const s = (x) => ({ fontFamily: "'Cormorant Garamond', Georgia, serif", ...x });
-  const Screen = ({children}) => React.createElement("div", { style: s({ minHeight:"100vh", background:C.parchment, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 24px" }) },
-    React.createElement("div", { style: { maxWidth:560, width:"100%" } }, children));
-  const Label = ({children}) => React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.3em", textTransform:"uppercase", color:C.terracotta, marginBottom:24 }) }, children);
-  const Q = ({children}) => React.createElement("h2", { style: s({ fontSize:28, fontWeight:400, color:C.ink, lineHeight:1.35, marginBottom:36 }) }, children);
-  const Btn = ({onClick,label="Continue",disabled}) => React.createElement("button", { onClick, disabled, style: s({ marginTop:36, padding:"16px 40px", background:disabled?C.stone:C.ink, color:disabled?C.warmGrey:C.parchment, border:"none", borderRadius:2, fontSize:13, letterSpacing:"0.25em", textTransform:"uppercase", cursor:disabled?"default":"pointer" }) }, label);
-  const Back = () => React.createElement("button", { onClick: back, style: s({ padding:"16px 24px", background:"transparent", border:`1px solid ${C.stone}`, borderRadius:2, color:C.warmGrey, fontSize:13, letterSpacing:"0.2em", textTransform:"uppercase", cursor:"pointer" }) }, "Back");
-  // TA defined above App to prevent focus loss
-  const Choice = ({label,selected,onClick}) => React.createElement("button", { onClick, style: s({ display:"block", width:"100%", textAlign:"left", padding:"16px 20px", marginBottom:10, background:selected?C.terracotta:"transparent", border:`1px solid ${selected?C.terracotta:C.stone}`, borderRadius:2, color:selected?C.parchment:C.inkLight, fontSize:16, cursor:"pointer" }) }, label);
+  // all UI components defined outside App
 
   const progressBar = React.createElement("div", { style: { position:"fixed", top:0, left:0, right:0, height:2, background:C.stone, zIndex:100 } },
     React.createElement("div", { style: { height:"100%", background:C.terracotta, width:`${(screen/15)*100}%`, transition:"width 0.5s ease" } }));
@@ -172,27 +173,27 @@ function App() {
     React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, what has been draining you the most?"),
     React.createElement(TA, { value:answers.draining, onChange:v=>update("draining",v), placeholder:"Be honest — this is just for you..." }),
-    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.draining.trim() })));
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.draining.trim() })));
 
   if (screen === 3) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
     React.createElement(Q, null, "On a typical weekday morning over the past month — how have you felt when you wake up?"),
     MORNING_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.morning===opt, onClick:()=>update("morning",opt) })),
     answers.morning==="Other" && React.createElement(TA, { value:answers.morningOther, onChange:v=>update("morningOther",v), placeholder:"Describe how you've been waking up..." }),
-    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.morning })));
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.morning })));
 
   if (screen === 4) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, what has been occupying your mind the most?"),
     React.createElement(TA, { value:answers.mindOccupied, onChange:v=>update("mindOccupied",v), placeholder:"The thoughts that keep coming back..." }),
-    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.mindOccupied.trim() })));
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.mindOccupied.trim() })));
 
   if (screen === 5) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, how has your sleep been?"),
     SLEEP_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.sleep===opt, onClick:()=>update("sleep",opt) })),
     answers.sleep==="Other" && React.createElement(TA, { value:answers.sleepOther, onChange:v=>update("sleepOther",v), placeholder:"Tell us more..." }),
-    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.sleep })));
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.sleep })));
 
   if (screen === 6) return React.createElement(Screen, null, progressBar,
     React.createElement("div", { style:{ textAlign:"center" } },
@@ -216,7 +217,7 @@ function App() {
       React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginTop:6 } },
         React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, "Draining"),
         React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, "Energising")))),
-    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next })));
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next })));
 
   if (screen === 8) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 2 of 3 — Energy Map"),
@@ -238,7 +239,7 @@ function App() {
           React.createElement("input", { type:"number", min:0, max:100, value:answers.allocation[d.key], onChange:e=>updateAlloc(d.key,e.target.value), style: s({ width:52, padding:"6px 8px", border:`1px solid ${C.stone}`, borderRadius:2, background:"transparent", fontSize:14, color:C.ink, textAlign:"center", outline:"none" }) }),
           React.createElement("span", { style: s({ fontSize:13, color:C.warmGrey }) }, "%"))))),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } },
-      React.createElement(Back),
+      React.createElement(BackBtn, {onClick:back}),
       React.createElement(Btn, { onClick:next, disabled:allocTotal!==100, label:allocTotal===100?"Continue":`${100-allocTotal}% remaining` })));
 
   if (screen === 9) return React.createElement(Screen, null, progressBar,
@@ -253,13 +254,13 @@ function App() {
     React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
     React.createElement(Q, null, "In the past month, when did you feel most like yourself — even briefly? What was happening?"),
     React.createElement(TA, { value:answers.mostLikeMyself, onChange:v=>update("mostLikeMyself",v), placeholder:"A moment, a place, a conversation..." }),
-    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.mostLikeMyself.trim() })));
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.mostLikeMyself.trim() })));
 
   if (screen === 11) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
     React.createElement(Q, null, "What have you been tolerating over the past month that you wish you weren't?"),
     React.createElement(TA, { value:answers.tolerating, onChange:v=>update("tolerating",v), placeholder:"The things you keep putting up with..." }),
-    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(Back), React.createElement(Btn, { onClick:next, disabled:!answers.tolerating.trim() })));
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.tolerating.trim() })));
 
   if (screen === 12) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
@@ -267,7 +268,7 @@ function App() {
     React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, marginBottom:24, fontStyle:"italic", lineHeight:1.6 }) }, "You usually already know. This is permission to say it, even just to yourself."),
     React.createElement(TA, { value:answers.senseChange, onChange:v=>update("senseChange",v), placeholder:"The thing you already sense but haven't said out loud..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } },
-      React.createElement(Back),
+      React.createElement(BackBtn, {onClick:back}),
       React.createElement(Btn, { onClick: async () => {
         next();
         setAiLoading(true); setAiError(false);
