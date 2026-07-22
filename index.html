@@ -35,7 +35,7 @@ const C = {
   warmGrey: "#9a8f85",
 };
 
-const DOMAIN_COLORS = ["#b85c38","#7a8c72","#9a8f85","#c97a58","#6b7a63","#d4cbba","#4a3f35","#b5a898"];
+const DOMAIN_COLORS = ["#b85c38","#7a8c72","#9a8f85","#c97a58","#6b7a63","#d4cbba","#4a3f35","#b5a898","#8fa88f","#c4a882","#7a6e64"];
 
 const DOMAINS = [
   { key: "work", label: "Work & career" },
@@ -44,14 +44,44 @@ const DOMAINS = [
   { key: "health", label: "Health & body" },
   { key: "growth", label: "Personal growth & learning" },
   { key: "creativity", label: "Creativity & expression" },
+  { key: "money", label: "Money & financial security" },
+  { key: "environment", label: "Physical environment & space" },
+  { key: "spirituality", label: "Spirituality & inner life" },
+];
+
+const ALLOC_DOMAINS = [
+  { key: "work", label: "Work & career" },
+  { key: "relationships", label: "Relationships & connection" },
+  { key: "family", label: "Family & home" },
+  { key: "health", label: "Health & body" },
+  { key: "growth", label: "Personal growth & learning" },
+  { key: "creativity", label: "Creativity & expression" },
+  { key: "money", label: "Money & financial security" },
+  { key: "environment", label: "Physical environment & space" },
+  { key: "spirituality", label: "Spirituality & inner life" },
   { key: "meaning", label: "Meaning & purpose" },
   { key: "freedom", label: "Freedom & autonomy" },
 ];
 
-const MORNING_OPTIONS = ["Energised and ready","Calm and steady","Neutral — going through the motions","Heavy or already tired","Anxious or overwhelmed","Other"];
-const SLEEP_OPTIONS = ["Restful and consistent","Mostly okay","Inconsistent","Poor — not restorative","Other"];
+const RESOURCES = [
+  { key: "meaning", label: "Sense of meaning", sub: "what I do matters" },
+  { key: "purpose", label: "Sense of purpose", sub: "I know where I'm going" },
+  { key: "values", label: "Values alignment", sub: "I'm living in line with what matters to me" },
+  { key: "autonomy", label: "Autonomy", sub: "I have genuine choice in how I live and work" },
+  { key: "freedom", label: "Freedom", sub: "I can be myself without performing or shrinking" },
+  { key: "peopleSupport", label: "Support from people close to me", sub: "family, partner, friends" },
+  { key: "envSupport", label: "Support from my environment", sub: "workplace, systems, structures around me" },
+  { key: "belonging", label: "Sense of belonging", sub: "I feel part of something" },
+  { key: "seen", label: "Feeling seen and understood", sub: "by at least one person in my life" },
+];
+
+const RESOURCE_SCALE = ["Strongly", "Somewhat", "Barely", "Not at all"];
+
+const MORNING_OPTIONS = ["Energised","Calm","Content","Peaceful","Excited","Happy","Wired","Restless","Anxious","Overwhelmed","Foggy","Tired","Heavy","Numb","Dreading","Helpless","Other"];
+const SLEEP_OPTIONS = ["Deeply restful","Okay — nothing to complain about","Broken or interrupted","Hard to fall asleep, mind racing","Waking up at 3am, can't switch off","Medicated or relying on something to sleep","Long but not restorative","Other"];
 
 async function generateAIReflection(answers, mostDraining, mostEnergising) {
+  const resourceSummary = RESOURCES.map(r => `${r.label}: ${answers.resources[r.key]||"not answered"}`).join(", ");
   const sliderSummary = Object.entries(answers.energySliders)
     .map(([k,v]) => v === 0 ? `${k}: 0 (absent/not accessed)` : `${k}: ${v>0?"+":""}${v}`)
     .join(", ");
@@ -72,6 +102,9 @@ ENERGY MAP (sliders -5 to +5): ${sliderSummary}
 ENERGY ALLOCATION: ${allocSummary}
 Most draining: ${mostDraining.label}
 Most energising: ${mostEnergising.label}
+PSYCHOLOGICAL RESOURCES (Strongly / Somewhat / Barely / Not at all):
+${resourceSummary}
+
 TRUTH LAYER:
 - Most like herself: "${answers.mostLikeMyself}"
 - Tolerating: "${answers.tolerating}"
@@ -136,7 +169,8 @@ function App() {
   const [answers, setAnswers] = useState({
     name: "", energising: "", draining: "", morning: "", morningOther: "", mindOccupied: "", sleep: "", sleepOther: "",
     energySliders: Object.fromEntries(DOMAINS.map(d=>[d.key,0])),
-    allocation: Object.fromEntries(DOMAINS.map(d=>[d.key,0])),
+    allocation: Object.fromEntries(ALLOC_DOMAINS.map(d=>[d.key,0])),
+    resources: Object.fromEntries(RESOURCES.map(r=>[r.key,""])),
     mostLikeMyself: "", tolerating: "", senseChange: "", email: "", wantsCall: false,
   });
   const [aiOutput, setAiOutput] = useState("");
@@ -149,6 +183,7 @@ function App() {
   const next = () => { setScreen(s=>s+1); window.scrollTo(0,0); };
   const back = () => { setScreen(s=>s-1); window.scrollTo(0,0); };
   const allocTotal = Object.values(answers.allocation).reduce((a,b)=>a+b,0);
+  const updateResource = (k,v) => setAnswers(p=>({...p,resources:{...p.resources,[k]:v}}));
 
   const misalignmentScore = d => { const s=answers.energySliders[d.key]||0; const a=answers.allocation[d.key]||0; return ((-s+5)/10)*0.6+(a/100)*0.4; };
   const energyScore = d => { const s=answers.energySliders[d.key]||0; const a=answers.allocation[d.key]||0; return ((s+5)/10)*0.7+(a/100)*0.3; };
@@ -158,7 +193,7 @@ function App() {
   // all UI components defined outside App
 
   const progressBar = React.createElement("div", { style: { position:"fixed", top:0, left:0, right:0, height:2, background:C.stone, zIndex:100 } },
-    React.createElement("div", { style: { height:"100%", background:C.terracotta, width:`${(screen/16)*100}%`, transition:"width 0.5s ease" } }));
+    React.createElement("div", { style: { height:"100%", background:C.terracotta, width:`${(screen/18)*100}%`, transition:"width 0.5s ease" } }));
 
   if (screen === 0) return React.createElement(Screen, null,
     progressBar,
@@ -177,32 +212,32 @@ function App() {
     React.createElement(Btn, { onClick:next, disabled:!answers.name.trim() }));
 
   if (screen === 2) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Label, null, "Part 1 of 4 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, what has been giving you the most energy?"),
     React.createElement(TA, { value:answers.energising, onChange:v=>update("energising",v), placeholder:"Write freely — there's no right answer..." }),
     React.createElement(Btn, { onClick:next, disabled:!answers.energising.trim() }));
 
   if (screen === 3) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Label, null, "Part 1 of 4 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, what has been draining you the most?"),
     React.createElement(TA, { value:answers.draining, onChange:v=>update("draining",v), placeholder:"Be honest — this is just for you..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.draining.trim() })));
 
   if (screen === 4) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Label, null, "Part 1 of 4 — Energy Snapshot"),
     React.createElement(Q, null, "On a typical weekday morning over the past month — how have you felt when you wake up?"),
     MORNING_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.morning===opt, onClick:()=>update("morning",opt) })),
     answers.morning==="Other" && React.createElement(TA, { value:answers.morningOther, onChange:v=>update("morningOther",v), placeholder:"Describe how you've been waking up..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.morning })));
 
   if (screen === 5) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Label, null, "Part 1 of 4 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, what has been occupying your mind the most?"),
     React.createElement(TA, { value:answers.mindOccupied, onChange:v=>update("mindOccupied",v), placeholder:"The thoughts that keep coming back..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.mindOccupied.trim() })));
 
   if (screen === 6) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 1 of 3 — Energy Snapshot"),
+    React.createElement(Label, null, "Part 1 of 4 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, how has your sleep been?"),
     SLEEP_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.sleep===opt, onClick:()=>update("sleep",opt) })),
     answers.sleep==="Other" && React.createElement(TA, { value:answers.sleepOther, onChange:v=>update("sleepOther",v), placeholder:"Tell us more..." }),
@@ -210,14 +245,14 @@ function App() {
 
   if (screen === 7) return React.createElement(Screen, null, progressBar,
     React.createElement("div", { style:{ textAlign:"center" } },
-      React.createElement(Label, null, "Part 2 of 3 — Energy Map"),
+      React.createElement(Label, null, "Part 2 of 4 — Energy Map"),
       React.createElement("h2", { style: s({ fontSize:32, fontWeight:300, color:C.ink, lineHeight:1.35, marginBottom:20 }) }, "Now let's map your energy across the different areas of your life."),
       React.createElement("div", { style:{ width:40, height:1, background:C.stone, margin:"0 auto 24px" } }),
       React.createElement("p", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.8, fontStyle:"italic" }) }, "For each area, move the slider to show whether it's been draining or energising you over the past month."),
       React.createElement(Btn, { onClick:next, label:"Let's map it" })));
 
   if (screen === 8) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 2 of 3 — Energy Map"),
+    React.createElement(Label, null, "Part 2 of 4 — Energy Map"),
     React.createElement(Q, null, "How much energy has each area been giving or taking over the past month?"),
     ...DOMAINS.map(d => React.createElement("div", { key:d.key, style:{ marginBottom:28 } },
       React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:10 } },
@@ -233,7 +268,7 @@ function App() {
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next })));
 
   if (screen === 9) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 2 of 3 — Energy Map"),
+    React.createElement(Label, null, "Part 2 of 4 — Energy Map"),
     React.createElement(Q, null, "Over the past month, where has most of your energy actually gone?"),
     React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, marginBottom:32, lineHeight:1.6 }) },
       "Distribute 100% across the areas below. Reflect reality — not how you wish it were. ",
@@ -242,11 +277,11 @@ function App() {
       React.createElement("div", { style:{ flexShrink:0 } },
         React.createElement(PieChart, { data:answers.allocation }),
         React.createElement("div", { style:{ marginTop:12, display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center" } },
-          DOMAINS.map((d,i) => answers.allocation[d.key]>0 && React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:4 } },
+          ALLOC_DOMAINS.map((d,i) => answers.allocation[d.key]>0 && React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:4 } },
             React.createElement("div", { style:{ width:8, height:8, borderRadius:"50%", background:DOMAIN_COLORS[i] } }),
             React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, `${answers.allocation[d.key]}%`))))),
       React.createElement("div", { style:{ flex:1, minWidth:200 } },
-        DOMAINS.map((d,i) => React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:12, marginBottom:14 } },
+        ALLOC_DOMAINS.map((d,i) => React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:12, marginBottom:14 } },
           React.createElement("div", { style:{ width:10, height:10, borderRadius:"50%", background:DOMAIN_COLORS[i], flexShrink:0 } }),
           React.createElement("span", { style: s({ flex:1, fontSize:14, color:C.inkLight }) }, d.label),
           React.createElement("input", { type:"number", min:0, max:100, value:answers.allocation[d.key], onChange:e=>updateAlloc(d.key,e.target.value), style: s({ width:52, padding:"6px 8px", border:`1px solid ${C.stone}`, borderRadius:2, background:"transparent", fontSize:14, color:C.ink, textAlign:"center", outline:"none" }) }),
@@ -255,28 +290,53 @@ function App() {
       React.createElement(BackBtn, {onClick:back}),
       React.createElement(Btn, { onClick:next, disabled:allocTotal!==100, label:allocTotal===100?"Continue":`${100-allocTotal}% remaining` })));
 
+
   if (screen === 10) return React.createElement(Screen, null, progressBar,
     React.createElement("div", { style:{ textAlign:"center" } },
-      React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+      React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.3em", textTransform:"uppercase", color:C.terracotta, marginBottom:24 }) }, "Part 3 of 4 — Psychological Resources"),
+      React.createElement("h2", { style: s({ fontSize:32, fontWeight:300, color:C.ink, lineHeight:1.35, marginBottom:20 }) }, "Now a few deeper questions."),
+      React.createElement("div", { style:{ width:40, height:1, background:C.stone, margin:"0 auto 24px" } }),
+      React.createElement("p", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.8, fontStyle:"italic" }) }, "These go beneath the surface — to the conditions that either sustain or deplete you."),
+      React.createElement(Btn, { onClick:next, label:"Continue" })));
+
+  if (screen === 11) return React.createElement(Screen, null, progressBar,
+    React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.3em", textTransform:"uppercase", color:C.terracotta, marginBottom:24 }) }, "Part 3 of 4 — Psychological Resources"),
+    React.createElement("h2", { style: s({ fontSize:26, fontWeight:400, color:C.ink, lineHeight:1.35, marginBottom:36 }) }, "Over the past month, how strongly have you felt each of these?"),
+    React.createElement("div", { style:{ display:"flex", marginBottom:8 } },
+      RESOURCE_SCALE.map(sc => React.createElement("span", { key:sc, style: s({ flex:1, textAlign:"center", fontSize:11, color:C.warmGrey, letterSpacing:"0.05em" }) }, sc))),
+    React.createElement("div", { style:{ width:"100%", height:1, background:C.stone, marginBottom:24 } }),
+    ...RESOURCES.map(r => React.createElement("div", { key:r.key, style:{ marginBottom:20 } },
+      React.createElement("div", { style:{ marginBottom:8 } },
+        React.createElement("span", { style: s({ fontSize:15, color:C.ink, fontWeight:500 }) }, r.label),
+        React.createElement("span", { style: s({ fontSize:12, color:C.warmGrey, marginLeft:8, fontStyle:"italic" }) }, `— ${r.sub}`)),
+      React.createElement("div", { style:{ display:"flex", gap:6 } },
+        RESOURCE_SCALE.map(opt => React.createElement("button", { key:opt, onClick:()=>updateResource(r.key, opt), style: s({ flex:1, padding:"10px 4px", background:answers.resources[r.key]===opt?C.terracotta:"transparent", border:`1px solid ${answers.resources[r.key]===opt?C.terracotta:C.stone}`, borderRadius:2, color:answers.resources[r.key]===opt?C.parchment:C.inkLight, fontSize:12, cursor:"pointer", textAlign:"center" }) }, opt))))),
+    React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } },
+      React.createElement(BackBtn, { onClick:back }),
+      React.createElement(Btn, { onClick:next, disabled:RESOURCES.some(r=>!answers.resources[r.key]) })));
+
+  if (screen === 12) return React.createElement(Screen, null, progressBar,
+    React.createElement("div", { style:{ textAlign:"center" } },
+      React.createElement(Label, null, "Part 4 of 4 — The Truth Layer"),
       React.createElement("h2", { style: s({ fontSize:32, fontWeight:300, color:C.ink, lineHeight:1.35, marginBottom:20 }) }, "Three final questions."),
       React.createElement("div", { style:{ width:40, height:1, background:C.stone, margin:"0 auto 24px" } }),
       React.createElement("p", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.8, fontStyle:"italic" }) }, "These are the ones that matter most. Take your time with them."),
       React.createElement(Btn, { onClick:next, label:"I'm ready" })));
 
-  if (screen === 11) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+  if (screen === 13) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 4 of 4 — The Truth Layer"),
     React.createElement(Q, null, "In the past month, when did you feel most like yourself — even briefly? What was happening?"),
     React.createElement(TA, { value:answers.mostLikeMyself, onChange:v=>update("mostLikeMyself",v), placeholder:"A moment, a place, a conversation..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.mostLikeMyself.trim() })));
 
-  if (screen === 12) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+  if (screen === 14) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 4 of 4 — The Truth Layer"),
     React.createElement(Q, null, "What have you been tolerating over the past month that you wish you weren't?"),
     React.createElement(TA, { value:answers.tolerating, onChange:v=>update("tolerating",v), placeholder:"The things you keep putting up with..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.tolerating.trim() })));
 
-  if (screen === 13) return React.createElement(Screen, null, progressBar,
-    React.createElement(Label, null, "Part 3 of 3 — The Truth Layer"),
+  if (screen === 15) return React.createElement(Screen, null, progressBar,
+    React.createElement(Label, null, "Part 4 of 4 — The Truth Layer"),
     React.createElement(Q, null, "If something in your life needs to change, what do you already sense it is?"),
     React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, marginBottom:24, fontStyle:"italic", lineHeight:1.6 }) }, "You usually already know. This is permission to say it, even just to yourself."),
     React.createElement(TA, { value:answers.senseChange, onChange:v=>update("senseChange",v), placeholder:"The thing you already sense but haven't said out loud..." }),
@@ -290,7 +350,7 @@ function App() {
         finally { setAiLoading(false); }
       }, disabled:!answers.senseChange.trim(), label:"See my reflection" })));
 
-  if (screen === 14) return React.createElement(Screen, null, progressBar,
+  if (screen === 16) return React.createElement(Screen, null, progressBar,
     React.createElement("div", null,
       React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.3em", textTransform:"uppercase", color:C.terracotta, marginBottom:40 }) }, "Your Alignment Snapshot"),
       React.createElement("div", { style:{ background:C.parchmentDeep, border:`1px solid ${C.stone}`, borderRadius:2, padding:24, marginBottom:36 } },
@@ -315,7 +375,7 @@ function App() {
         React.createElement(Btn, { onClick:next, label:"I'd like to explore this" }),
         React.createElement("p", { onClick:next, style: s({ marginTop:16, fontSize:13, color:C.warmGrey, cursor:"pointer", textDecoration:"underline" }) }, "Skip to contact options"))));
 
-  if (screen === 15) return React.createElement(Screen, null, progressBar,
+  if (screen === 17) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Let's talk"),
     React.createElement("h2", { style: s({ fontSize:32, fontWeight:300, color:C.ink, lineHeight:1.35, marginBottom:16 }) }, "Leave your email and I'll be in touch within a day."),
     React.createElement("p", { style: s({ fontSize:16, color:C.inkLight, lineHeight:1.7, marginBottom:36, fontStyle:"italic" }) }, "No commitment. Just a conversation."),
@@ -327,13 +387,13 @@ function App() {
       try {
         await fetch("/.netlify/functions/submit", {
           method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ email:answers.email, wantsCall:answers.wantsCall, energising:answers.energising, draining:answers.draining, morning:answers.morning+(answers.morningOther?": "+answers.morningOther:""), mindOccupied:answers.mindOccupied, sleep:answers.sleep+(answers.sleepOther?": "+answers.sleepOther:""), energySliders:answers.energySliders, allocation:answers.allocation, mostLikeMyself:answers.mostLikeMyself, tolerating:answers.tolerating, senseChange:answers.senseChange, aiOutput, mostDraining:mostDraining.label, mostEnergising:mostEnergising.label }),
+          body: JSON.stringify({ email:answers.email, wantsCall:answers.wantsCall, resources:answers.resources, energising:answers.energising, draining:answers.draining, morning:answers.morning+(answers.morningOther?": "+answers.morningOther:""), mindOccupied:answers.mindOccupied, sleep:answers.sleep+(answers.sleepOther?": "+answers.sleepOther:""), energySliders:answers.energySliders, allocation:answers.allocation, mostLikeMyself:answers.mostLikeMyself, tolerating:answers.tolerating, senseChange:answers.senseChange, aiOutput, mostDraining:mostDraining.label, mostEnergising:mostEnergising.label }),
         });
       } catch(e) { console.log(e); }
       next();
     }, label:"Send", disabled:!answers.email.trim() }));
 
-  if (screen === 16) return React.createElement(Screen, null, progressBar,
+  if (screen === 18) return React.createElement(Screen, null, progressBar,
     React.createElement("div", { style:{ textAlign:"center" } },
       React.createElement("p", { style: s({ fontSize:11, letterSpacing:"0.4em", textTransform:"uppercase", color:C.terracotta, marginBottom:32 }) }, "Flourish Studio"),
       React.createElement("h2", { style: s({ fontSize:36, fontWeight:300, color:C.ink, lineHeight:1.3, marginBottom:20 }) }, "Thank you for taking the time to reflect."),
