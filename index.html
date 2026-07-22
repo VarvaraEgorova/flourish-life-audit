@@ -82,6 +82,7 @@ const SLEEP_OPTIONS = ["Deeply restful","Okay — nothing to complain about","Br
 
 async function generateAIReflection(answers, mostDraining, mostEnergising) {
   const resourceSummary = RESOURCES.map(r => `${r.label}: ${answers.resources[r.key]||"not answered"}`).join(", ");
+  const timeSummary = DOMAINS.map(d => `${d.label}: ${(answers.timeInvestment&&answers.timeInvestment[d.key])||"not answered"}`).join(", ");
   const sliderSummary = Object.entries(answers.energySliders)
     .map(([k,v]) => v === 0 ? `${k}: 0 (absent/not accessed)` : `${k}: ${v>0?"+":""}${v}`)
     .join(", ");
@@ -95,13 +96,23 @@ Her responses:
 ENERGY SNAPSHOT:
 - Giving her energy: "${answers.energising}"
 - Draining her: "${answers.draining}"
-- Morning feeling: "${answers.morning}${answers.morningOther?": "+answers.morningOther:""}"
+- Morning feeling: "${answers.morning.join(", ")}${answers.morningOther?": "+answers.morningOther:""}"
 - Occupying her mind: "${answers.mindOccupied}"
-- Sleep: "${answers.sleep}${answers.sleepOther?": "+answers.sleepOther:""}"
+- Sleep: "${answers.sleep.join(", ")}${answers.sleepOther?": "+answers.sleepOther:""}"
 ENERGY MAP (sliders -5 to +5): ${sliderSummary}
 ENERGY ALLOCATION: ${allocSummary}
 Most draining: ${mostDraining.label}
 Most energising: ${mostEnergising.label}
+TIME INVESTMENT (how much time/attention each area actually received — A lot / Some / Very little or none):
+${timeSummary}
+
+KEY MISALIGNMENT SIGNALS TO LOOK FOR:
+- High time + draining slider = burnout trap (investing a lot in something that depletes her)
+- Low time + energising slider = deprivation (something that feeds her but she's not accessing it)
+- High time + energising slider = aligned and sustaining
+- Low time + draining slider = manageable, not the core issue
+Use these patterns to identify the most important insight in her data. Name it gently without diagnosing.
+
 PSYCHOLOGICAL RESOURCES (Strongly / Somewhat / Barely / Not at all):
 ${resourceSummary}
 
@@ -167,7 +178,7 @@ function BackBtn({onClick}) { return React.createElement("button", { onClick, st
 function App() {
   const [screen, setScreen] = useState(0);
   const [answers, setAnswers] = useState({
-    name: "", energising: "", draining: "", morning: "", morningOther: "", mindOccupied: "", sleep: "", sleepOther: "",
+    name: "", energising: "", draining: "", morning: [], morningOther: "", mindOccupied: "", sleep: [], sleepOther: "",
     energySliders: Object.fromEntries(DOMAINS.map(d=>[d.key,0])),
     allocation: Object.fromEntries(ALLOC_DOMAINS.map(d=>[d.key,0])),
     resources: Object.fromEntries(RESOURCES.map(r=>[r.key,""])),
@@ -226,7 +237,9 @@ function App() {
   if (screen === 4) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 1 of 4 — Energy Snapshot"),
     React.createElement(Q, null, "On a typical weekday morning over the past month — how have you felt when you wake up?"),
-    MORNING_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.morning===opt, onClick:()=>update("morning",opt) })),
+    MORNING_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt,
+          selected:answers.morning.includes(opt),
+          onClick:()=>update("morning", answers.morning.includes(opt) ? answers.morning.filter(x=>x!==opt) : [...answers.morning, opt]) })),
     answers.morning==="Other" && React.createElement(TA, { value:answers.morningOther, onChange:v=>update("morningOther",v), placeholder:"Describe how you've been waking up..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.morning })));
 
@@ -239,7 +252,9 @@ function App() {
   if (screen === 6) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 1 of 4 — Energy Snapshot"),
     React.createElement(Q, null, "Over the past month, how has your sleep been?"),
-    SLEEP_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt, selected:answers.sleep===opt, onClick:()=>update("sleep",opt) })),
+    SLEEP_OPTIONS.map(opt => React.createElement(Choice, { key:opt, label:opt,
+          selected:answers.sleep.includes(opt),
+          onClick:()=>update("sleep", answers.sleep.includes(opt) ? answers.sleep.filter(x=>x!==opt) : [...answers.sleep, opt]) })),
     answers.sleep==="Other" && React.createElement(TA, { value:answers.sleepOther, onChange:v=>update("sleepOther",v), placeholder:"Tell us more..." }),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } }, React.createElement(BackBtn, {onClick:back}), React.createElement(Btn, { onClick:next, disabled:!answers.sleep })));
 
@@ -253,7 +268,7 @@ function App() {
 
   if (screen === 8) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 2 of 4 — Energy Map"),
-    React.createElement(Q, null, "How much energy has each area been giving or taking over the past month?"),
+    React.createElement(Q, null, "Over the past month, has each of these areas been giving you energy or taking it?"),
     ...DOMAINS.map(d => React.createElement("div", { key:d.key, style:{ marginBottom:28 } },
       React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:10 } },
         React.createElement("span", { style: s({ fontSize:15, color:C.ink }) }, d.label),
@@ -261,7 +276,9 @@ function App() {
       React.createElement("div", { style:{ position:"relative", height:24, display:"flex", alignItems:"center" } },
         React.createElement("div", { style:{ position:"absolute", left:0, right:0, height:1, background:C.stone } }),
         React.createElement("div", { style:{ position:"absolute", left:"50%", width:1, height:8, background:C.warmGrey, transform:"translateX(-50%)" } }),
-        React.createElement("input", { type:"range", min:-5, max:5, step:1, value:answers.energySliders[d.key], onChange:e=>updateSlider(d.key,Number(e.target.value)) })),
+        React.createElement("input", { type:"range", min:-5, max:5, step:1, value:answers.energySliders[d.key],
+          onChange:e=>updateSlider(d.key,Number(e.target.value)),
+          onClick:e=>{ const rect=e.target.getBoundingClientRect(); const pct=(e.clientX-rect.left)/rect.width; const val=Math.round(pct*10-5); updateSlider(d.key,Math.max(-5,Math.min(5,val))); } })),
       React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginTop:6 } },
         React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, "Draining"),
         React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, "Energising")))),
@@ -269,26 +286,17 @@ function App() {
 
   if (screen === 9) return React.createElement(Screen, null, progressBar,
     React.createElement(Label, null, "Part 2 of 4 — Energy Map"),
-    React.createElement(Q, null, "Over the past month, where has most of your energy actually gone?"),
-    React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, marginBottom:32, lineHeight:1.6 }) },
-      "Distribute 100% across the areas below. Reflect reality — not how you wish it were. ",
-      React.createElement("span", { style:{ color:allocTotal===100?C.sage:allocTotal>100?C.terracotta:C.warmGrey, fontWeight:500 } }, `Total: ${allocTotal}%`)),
-    React.createElement("div", { style:{ display:"flex", gap:32, alignItems:"flex-start", flexWrap:"wrap" } },
-      React.createElement("div", { style:{ flexShrink:0 } },
-        React.createElement(PieChart, { data:answers.allocation }),
-        React.createElement("div", { style:{ marginTop:12, display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center" } },
-          ALLOC_DOMAINS.map((d,i) => answers.allocation[d.key]>0 && React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:4 } },
-            React.createElement("div", { style:{ width:8, height:8, borderRadius:"50%", background:DOMAIN_COLORS[i] } }),
-            React.createElement("span", { style: s({ fontSize:11, color:C.warmGrey }) }, `${answers.allocation[d.key]}%`))))),
-      React.createElement("div", { style:{ flex:1, minWidth:200 } },
-        ALLOC_DOMAINS.map((d,i) => React.createElement("div", { key:d.key, style:{ display:"flex", alignItems:"center", gap:12, marginBottom:14 } },
-          React.createElement("div", { style:{ width:10, height:10, borderRadius:"50%", background:DOMAIN_COLORS[i], flexShrink:0 } }),
-          React.createElement("span", { style: s({ flex:1, fontSize:14, color:C.inkLight }) }, d.label),
-          React.createElement("input", { type:"number", min:0, max:100, value:answers.allocation[d.key], onChange:e=>updateAlloc(d.key,e.target.value), style: s({ width:52, padding:"6px 8px", border:`1px solid ${C.stone}`, borderRadius:2, background:"transparent", fontSize:14, color:C.ink, textAlign:"center", outline:"none" }) }),
-          React.createElement("span", { style: s({ fontSize:13, color:C.warmGrey }) }, "%"))))),
+    React.createElement(Q, null, "Over the past month, how much of your time and attention has each area actually received?"),
+    React.createElement("p", { style: s({ fontSize:14, color:C.warmGrey, marginBottom:32, lineHeight:1.6 }) }, "Not how much you wish — what actually happened."),
+    ...DOMAINS.map(d => React.createElement("div", { key:d.key, style:{ marginBottom:20 } },
+      React.createElement("span", { style: s({ fontSize:15, color:C.ink, display:"block", marginBottom:8 }) }, d.label),
+      React.createElement("div", { style:{ display:"flex", gap:8 } },
+        ["A lot","Some","Very little or none"].map(opt => React.createElement("button", { key:opt,
+          onClick:()=>setAnswers(p=>({...p, timeInvestment:{...p.timeInvestment, [d.key]:opt}})),
+          style: s({ flex:1, padding:"12px 8px", background:answers.timeInvestment&&answers.timeInvestment[d.key]===opt?C.terracotta:"transparent", border:`1px solid ${answers.timeInvestment&&answers.timeInvestment[d.key]===opt?C.terracotta:C.stone}`, borderRadius:2, color:answers.timeInvestment&&answers.timeInvestment[d.key]===opt?C.parchment:C.inkLight, fontSize:13, cursor:"pointer", textAlign:"center" }) }, opt))))),
     React.createElement("div", { style:{ display:"flex", gap:16, marginTop:36 } },
-      React.createElement(BackBtn, {onClick:back}),
-      React.createElement(Btn, { onClick:next, disabled:allocTotal!==100, label:allocTotal===100?"Continue":`${100-allocTotal}% remaining` })));
+      React.createElement(BackBtn, { onClick:back }),
+      React.createElement(Btn, { onClick:next, disabled:!DOMAINS.every(d=>answers.timeInvestment&&answers.timeInvestment[d.key]) })));
 
 
   if (screen === 10) return React.createElement(Screen, null, progressBar,
@@ -387,7 +395,7 @@ function App() {
       try {
         await fetch("/.netlify/functions/submit", {
           method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ email:answers.email, wantsCall:answers.wantsCall, resources:answers.resources, energising:answers.energising, draining:answers.draining, morning:answers.morning+(answers.morningOther?": "+answers.morningOther:""), mindOccupied:answers.mindOccupied, sleep:answers.sleep+(answers.sleepOther?": "+answers.sleepOther:""), energySliders:answers.energySliders, allocation:answers.allocation, mostLikeMyself:answers.mostLikeMyself, tolerating:answers.tolerating, senseChange:answers.senseChange, aiOutput, mostDraining:mostDraining.label, mostEnergising:mostEnergising.label }),
+          body: JSON.stringify({ email:answers.email, wantsCall:answers.wantsCall, resources:answers.resources, timeInvestment:answers.timeInvestment, energising:answers.energising, draining:answers.draining, morning:answers.morning.join(", ")+(answers.morningOther?": "+answers.morningOther:""), mindOccupied:answers.mindOccupied, sleep:answers.sleep.join(", ")+(answers.sleepOther?": "+answers.sleepOther:""), energySliders:answers.energySliders, allocation:answers.allocation, mostLikeMyself:answers.mostLikeMyself, tolerating:answers.tolerating, senseChange:answers.senseChange, aiOutput, mostDraining:mostDraining.label, mostEnergising:mostEnergising.label }),
         });
       } catch(e) { console.log(e); }
       next();
